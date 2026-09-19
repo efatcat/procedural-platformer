@@ -1,26 +1,26 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Пятиугольный путь</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <title>ПЕНТАГОН·40 — процедурный платформер</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;700&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="game-shell">
-    <header>
-      <div>
-        <h1>Пятиугольный путь</h1>
-        <p>Доберись до финиша через 40 платформ</p>
-      </div>
-      <div class="stats"><span id="progress">Платформа 1 / 40</span><span id="seed"></span></div>
-    </header>
-    <div class="canvas-wrap">
-      <canvas id="game" width="960" height="540" aria-label="Платформер"></canvas>
-      <div id="message" class="message hidden"></div>
-    </div>
-    <footer><b>← → / A D</b> — движение &nbsp; <b>↑ / W / Space</b> — прыжок &nbsp; <b>R</b> — заново</footer>
-  </main>
-  <script src="game.js"></script>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="hud-card left"><span class="label">ПРОГРЕСС · 40 ПЛАТФОРМ</span><strong><b id="current">01</b><small> / 40</small></strong><div class="bar"><i id="fill"></i></div></div>
+  <div class="hud-card right"><div><span class="label">ВРЕМЯ</span><b id="time">0:00.0</b></div><div><span class="label">ПАДЕНИЯ</span><b id="falls">0 / 5</b></div><div><span class="label">ЗАЗОР</span><b id="gap">—</b></div></div>
+  <div class="hint"><b>A D / ← →</b> бег · <b>SPACE</b> прыжок · <b>P</b> пауза · <b>R</b> заново</div>
+</div>
+<div id="touch"><button data-key="left">◀</button><button data-key="right">▶</button><button class="jump" data-key="jump">▲</button></div>
+<section class="overlay show" id="menu"><div class="panel"><div class="logo"><span>⬟</span></div><h1>ПЕНТАГОН<em>40</em></h1><p>Мир появляется впереди и исчезает за спиной. Под ногами всегда пять платформ.</p><ul><li>Жёлтый пятиугольник с классическим управлением</li><li>Три процедурных типа промежутка: короткий, средний и дальний</li><li>После каждой платформы игрок остаётся третьим в окне обзора</li></ul><div class="keys"><kbd>A</kbd><kbd>D</kbd> движение <kbd>SPACE</kbd> прыжок</div><button class="primary" id="start">НАЧАТЬ ЗАБЕГ</button></div></section>
+<section class="overlay" id="pause"><div class="panel"><h2>ПАУЗА</h2><p>Платформы ждут.</p><button class="primary" id="resume">ПРОДОЛЖИТЬ</button></div></section>
+<section class="overlay" id="win"><div class="panel"><span class="label">ФИНИШ</span><h2>40 / 40</h2><p id="winStats"></p><button class="primary" id="again">НОВЫЙ ЗАБЕГ</button></div></section>
+<section class="overlay" id="over"><div class="panel"><span class="label danger">ЗАБЕГ ОКОНЧЕН</span><h2>5 ПАДЕНИЙ</h2><p>Попробуй пройти уровень ещё раз.</p><button class="primary" id="retry">ПОВТОРИТЬ</button></div></section>
+<script src="game.js"></script>
 </body>
 </html>

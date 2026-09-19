@@ -1,69 +1,22 @@
-const canvas = document.querySelector('#game');
-const ctx = canvas.getContext('2d');
-const progress = document.querySelector('#progress');
-const seedLabel = document.querySelector('#seed');
-const message = document.querySelector('#message');
-const W = canvas.width, H = canvas.height;
-const TOTAL = 40;
-const GAP_VARIANTS = [105, 170, 245];
-const keys = new Set();
-let seed = Math.floor(Math.random() * 0xffffffff);
-let platforms, player, cameraX, currentPlatform, state;
-
-function random() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x100000000; }
-function choose(list) { return list[Math.floor(random() * list.length)]; }
-function reset() {
-  platforms = [{ x: 70, y: 410, w: 190, h: 18, index: 0 }];
-  currentPlatform = 0;
-  for (let i = 1; i < TOTAL; i++) generatePlatform(i);
-  player = { x: platforms[0].x + 70, y: platforms[0].y - 34, w: 30, h: 34, vx: 0, vy: 0, grounded: true };
-  cameraX = 0; state = 'playing'; message.classList.add('hidden');
-  progress.textContent = 'Платформа 1 / 40'; seedLabel.textContent = `seed ${seed}`;
-}
-function generatePlatform(index) {
-  const previous = platforms[index - 1];
-  const gap = choose(GAP_VARIANTS);
-  const y = Math.max(245, Math.min(445, previous.y + choose([-75, -35, 0, 25, 55])));
-  platforms.push({ x: previous.x + previous.w + gap, y, w: 135 + Math.floor(random() * 75), h: 18, index });
-}
-function restart() { seed = Math.floor(Math.random() * 0xffffffff); reset(); }
-function onKey(e, down) {
-  if (['ArrowLeft','ArrowRight','ArrowUp','Space','KeyA','KeyD','KeyW','KeyR'].includes(e.code)) e.preventDefault();
-  if (down && e.code === 'KeyR') restart();
-  if (down) keys.add(e.code); else keys.delete(e.code);
-}
-addEventListener('keydown', e => onKey(e, true)); addEventListener('keyup', e => onKey(e, false));
-
-function update(dt) {
-  if (state !== 'playing') return;
-  const left = keys.has('ArrowLeft') || keys.has('KeyA');
-  const right = keys.has('ArrowRight') || keys.has('KeyD');
-  const jump = keys.has('ArrowUp') || keys.has('KeyW') || keys.has('Space');
-  if (left) player.vx -= 0.65 * dt; if (right) player.vx += 0.65 * dt;
-  if (!left && !right) player.vx *= Math.pow(0.78, dt);
-  player.vx = Math.max(-6.5, Math.min(6.5, player.vx));
-  if (jump && player.grounded) { player.vy = -12.5; player.grounded = false; }
-  const oldBottom = player.y + player.h;
-  player.vy += 0.62 * dt; player.vy = Math.min(player.vy, 15);
-  player.x += player.vx * dt; player.y += player.vy * dt; player.grounded = false;
-  for (const p of platforms) {
-    if (player.vy >= 0 && oldBottom <= p.y + 3 && player.y + player.h >= p.y && player.x + player.w > p.x + 8 && player.x < p.x + p.w - 8) {
-      player.y = p.y - player.h; player.vy = 0; player.grounded = true;
-      if (p.index > currentPlatform) { currentPlatform = p.index; progress.textContent = `Платформа ${currentPlatform + 1} / ${TOTAL}`; if (currentPlatform === TOTAL - 1) finish(); }
-    }
-  }
-  if (player.y > H + 150) { player.x = platforms[currentPlatform].x + 45; player.y = platforms[currentPlatform].y - player.h - 5; player.vy = 0; }
-  const target = player.x - W * 0.42; cameraX += (target - cameraX) * 0.1; cameraX = Math.max(0, Math.min(cameraX, platforms[TOTAL - 1].x - W + 120));
-}
-function finish() { state = 'won'; message.innerHTML = 'Финиш! <small>Ты прошёл все 40 платформ. Нажми R, чтобы сыграть снова.</small>'; message.classList.remove('hidden'); }
-function visible(p) { return p.index >= Math.max(0, currentPlatform - 2) && p.index <= Math.min(TOTAL - 1, currentPlatform + 2); }
-function draw() {
-  const grad = ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#202a59'); grad.addColorStop(1,'#11152d'); ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle = '#ffffff12'; for (let i=0;i<50;i++) { const x = (i*193 - cameraX*.15) % W; const y = (i*83)%260; ctx.fillRect(x,y,2,2); }
-  for (const p of platforms) if (visible(p)) drawPlatform(p);
-  drawPlayer();
-}
-function drawPlatform(p) { const x=p.x-cameraX; ctx.fillStyle='#39488a'; ctx.fillRect(x,p.y,p.w,p.h); ctx.fillStyle='#73e0c0'; ctx.fillRect(x,p.y,p.w,5); ctx.fillStyle='#ffffff18'; ctx.fillRect(x+8,p.y+8,p.w-16,3); }
-function drawPlayer() { const x=player.x-cameraX+player.w/2,y=player.y+player.h/2; ctx.save(); ctx.translate(x,y); ctx.rotate(Math.PI/2); ctx.beginPath(); for(let i=0;i<5;i++){const a=i*2*Math.PI/5; const px=Math.cos(a)*22, py=Math.sin(a)*22; i?ctx.lineTo(px,py):ctx.moveTo(px,py);} ctx.closePath(); ctx.fillStyle='#ffda24'; ctx.fill(); ctx.strokeStyle='#fff09a'; ctx.lineWidth=3; ctx.stroke(); ctx.restore(); }
-let last = performance.now(); function loop(now) { const dt=Math.min(2,(now-last)/16.67); last=now; update(dt); draw(); requestAnimationFrame(loop); }
-reset(); requestAnimationFrame(loop);
+(()=>{'use strict';
+const cv=document.querySelector('#game'),ctx=cv.getContext('2d');const TOTAL=40,GAPS=[{n:'КОРОТКИЙ',v:105},{n:'СРЕДНИЙ',v:175},{n:'ДАЛЬНИЙ',v:250}];let W,H,dpr,plats,player,idx,state,falls,time,last,cam,seed,rng;const keys={};let touch={left:false,right:false,jump:false};
+const $=id=>document.getElementById(id);const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));const pad=n=>String(n).padStart(2,'0');const fmt=t=>{let m=Math.floor(t/60),s=t-m*60;return `${m}:${pad(Math.floor(s))}.${Math.floor(s%1*10)}`};
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
+function random(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}function pick(a){return a[Math.floor(random()*a.length)]}
+function build(){plats=[{x:80,y:420,w:210,h:20,i:0,gap:0}];for(let i=1;i<TOTAL;i++){let p=plats[i-1],g=pick(GAPS),y=clamp(p.y+pick([-70,-32,0,27,55]),230,440);plats.push({x:p.x+p.w+g.v,y,w:125+random()*85,h:20,i,gap:GAPS.indexOf(g)})}}
+function reset(){seed=(Math.random()*0xffffffff)>>>0;build();idx=0;falls=0;time=0;cam=0;player={x:plats[0].x+75,y:plats[0].y-38,w:32,h:38,vx:0,vy:0,ground:true,rot:0};state='play';hide();$('hud').classList.add('on');updateHud()}
+function hide(){document.querySelectorAll('.overlay').forEach(x=>x.classList.remove('show'))}function show(id){$(id).classList.add('show')}
+function updateHud(){$('current').textContent=pad(idx+1);$('fill').style.width=((idx+1)/TOTAL*100)+'%';$('falls').textContent=`${falls} / 5`;let next=plats[idx+1];$('gap').textContent=next?GAPS[next.gap].n:'ФИНИШ'}
+function visible(p){return p.i>=Math.max(0,idx-2)&&p.i<=Math.min(TOTAL-1,idx+2)}
+function update(dt){if(state!=='play')return;let l=keys.ArrowLeft||keys.KeyA||touch.left,r=keys.ArrowRight||keys.KeyD||touch.right,j=keys.Space||keys.ArrowUp||keys.KeyW||touch.jump;if(l)player.vx-=.7*dt;if(r)player.vx+=.7*dt;if(!l&&!r)player.vx*=Math.pow(.78,dt);player.vx=clamp(player.vx,-7,7);if(j&&player.ground){player.vy=-13;player.ground=false}let old=player.y+player.h;player.vy=clamp(player.vy+.65*dt,-20,16);player.x+=player.vx*dt;player.y+=player.vy*dt;player.ground=false;for(let p of plats){if(!visible(p)||player.vy<0)continue;if(old<=p.y+4&&player.y+player.h>=p.y&&player.x+player.w>p.x+8&&player.x<p.x+p.w-8){player.y=p.y-player.h;player.vy=0;player.ground=true;if(p.i>idx){idx=p.i;updateHud();if(idx===TOTAL-1)win()}}}if(player.y>H+200)die();let target=player.x-W*.4;cam+=(target-cam)*.1;cam=Math.max(0,Math.min(cam,plats[TOTAL-1].x-W+180));$('time').textContent=fmt(time)}
+function die(){falls++;updateHud();if(falls>=5){state='over';show('over');return}let p=plats[idx];player.x=p.x+45;player.y=p.y-player.h;player.vx=0;player.vy=0}
+function win(){state='win';$('winStats').textContent=`Время ${fmt(time)} · падений ${falls} · seed ${seed.toString(36).toUpperCase()}`;show('win')}
+function drawBg(){let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#071424');g.addColorStop(.6,'#12384a');g.addColorStop(1,'#1e5557');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.fillStyle='#ffe1a0';ctx.globalAlpha=.7;ctx.beginPath();ctx.arc(W*.74,H*.25,42,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;for(let i=0;i<45;i++){ctx.fillStyle='#fff4d633';ctx.fillRect((i*193-cam*.15)%W,(i*79)%H*.55,2,2)}ctx.fillStyle='#081b29';ctx.beginPath();ctx.moveTo(0,H);for(let x=0;x<=W;x+=30)ctx.lineTo(x,H*.62+Math.sin((x+cam*.15)*.012)*30);ctx.lineTo(W,H);ctx.fill()}
+function platform(p){if(!visible(p))return;let x=p.x-cam;if(x+p.w<0||x>W)return;ctx.fillStyle='#102536';ctx.fillRect(x,p.y,p.w,p.h);ctx.fillStyle='#f1bb5a';ctx.fillRect(x,p.y,p.w,5);ctx.fillStyle='#6ba784';for(let k=10;k<p.w;k+=32){ctx.fillRect(x+k,p.y-5,2,5);ctx.fillRect(x+k+2,p.y-8,2,8)}}
+function pent(x,y,r,a){ctx.beginPath();for(let i=0;i<5;i++){let t=a-Math.PI/2+i*Math.PI*2/5;let X=x+Math.cos(t)*r,Y=y+Math.sin(t)*r;i?ctx.lineTo(X,Y):ctx.moveTo(X,Y)}ctx.closePath()}
+function draw(){drawBg();plats.forEach(platform);let x=player.x-cam+player.w/2,y=player.y+player.h/2;ctx.save();ctx.translate(x,y);ctx.rotate(player.rot);pent(0,0,24,0);ctx.fillStyle='#ffd23f';ctx.fill();ctx.strokeStyle='#765400';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-7,-4,5,0,7);ctx.arc(7,-4,5,0,7);ctx.fill();ctx.fillStyle='#201a05';ctx.beginPath();ctx.arc(-6,-4,2,0,7);ctx.arc(8,-4,2,0,7);ctx.fill();ctx.restore()}
+function frame(now){let dt=Math.min((now-last)/16.67,2);last=now;if(state==='play'){time+=dt/60;update(dt)}draw();requestAnimationFrame(frame)}
+addEventListener('keydown',e=>{keys[e.code]=true;if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyR')reset();if(e.code==='KeyP'&&state==='play'){state='pause';show('pause')}else if(e.code==='KeyP'&&state==='pause'){state='play';hide();$('hud').classList.add('on')}});addEventListener('keyup',e=>keys[e.code]=false);
+document.querySelectorAll('#touch button').forEach(b=>{let k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();touch[k]=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,()=>touch[k]=false))});$('start').onclick=reset;$('resume').onclick=()=>{state='play';hide();$('hud').classList.add('on')};$('again').onclick=reset;$('retry').onclick=reset;
+state='menu';seed=1;build();idx=0;player={x:150,y:380,w:32,h:38,vx:0,vy:0,ground:true,rot:0};last=performance.now();requestAnimationFrame(frame);
+})();
